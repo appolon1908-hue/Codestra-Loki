@@ -29,7 +29,6 @@ x-loki-service: &loki-service
     - no-new-privileges:true
   cap_drop:
     - ALL
-  pids_limit: 512
   tmpfs:
     - /tmp:size=64m,mode=1777
   expose:
@@ -64,6 +63,7 @@ x-loki-service: &loki-service
       limits:
         cpus: "2.0"
         memory: 4G
+        pids: 512
       reservations:
         cpus: "0.5"
         memory: 1G
