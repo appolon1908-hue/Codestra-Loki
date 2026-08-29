@@ -68,9 +68,6 @@ runtime_config:
   file: /etc/loki/runtime-config.yaml
   period: 10s
 
-operational_config:
-  poll_interval: 10s
-
 analytics:
   reporting_enabled: false
 
