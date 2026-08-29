@@ -1,0 +1,45 @@
+{
+  "schemaVersion": "1.0",
+  "component": "loki",
+  "role": "central-log-authority",
+  "canonicalHostname": "loki.codestra.media",
+  "exposure": "internal_private",
+  "status": "SOURCE_PREPARED_NOT_DEPLOYED",
+  "businessScope": [
+    "codestra",
+    "moneybee",
+    "beyvra",
+    "breero",
+    "larim-a",
+    "transportation",
+    "booked4seasons",
+    "social",
+    "klyrow",
+    "telnexa",
+    "kyqra",
+    "restaurant",
+    "provisioning"
+  ],
+  "platformScope": ["caddy", "kong", "keycloak", "middleware", "odoo", "n8n", "vicidial", "postgresql", "redis", "openbao"],
+  "requiredLabels": ["environment", "service", "application", "server", "region", "deployment", "codestra_business"],
+  "structuredFields": ["timestamp", "level", "request_id", "correlation_id", "trace_id", "tenant_id", "operation", "actor_type", "result", "error_code"],
+  "forbiddenHighCardinalityLabels": ["tenant_id", "customer_id", "request_id", "correlation_id", "trace_id", "email", "phone", "message_id", "order_id"],
+  "redaction": {
+    "required": true,
+    "forbiddenContent": ["authorization_headers", "api_keys", "passwords", "private_keys", "session_tokens", "broker_signing_secrets", "raw_sensitive_payloads"]
+  },
+  "features": {
+    "structuredJson": true,
+    "traceCorrelation": true,
+    "businessFiltering": true,
+    "securityAuditStreams": true,
+    "retentionTiers": true,
+    "volumeGuardrails": true,
+    "tenantSafeInvestigation": true,
+    "deploymentCorrelation": true
+  },
+  "financialTradingBoundary": {
+    "business": "beyvra",
+    "rule": "Logs may contain safe order/trading event metadata but never broker secrets, credentials, raw authorization headers, or authoritative financial ledger state."
+  }
+}
