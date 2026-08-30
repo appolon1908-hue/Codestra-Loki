@@ -73,7 +73,7 @@ jobs:
       - name: Verify Loki configuration with exact source
         env:
           LOKI_INSTANCE_ID: loki-ci
-          COMPACTOR_MODE: coordinator
+          COMPACTOR_MODE: main
           LOKI_S3_ENDPOINT: s3.internal.example:443
           LOKI_S3_REGION: us-east-1
           LOKI_S3_CHUNKS_BUCKET: codestra-loki-ci

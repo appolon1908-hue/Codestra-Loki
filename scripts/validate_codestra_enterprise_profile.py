@@ -155,6 +155,8 @@ require_fragments(
         "LOKI_S3_ACCESS_KEY_ID",
         "LOKI_S3_SECRET_ACCESS_KEY",
         "LOKI_ALERTMANAGER_URL",
+        "ruler_storage:",
+        "backend: s3",
     ),
     "codestra/config/loki.yaml",
 )
@@ -163,6 +165,18 @@ reject_fragments(
     ("access_key_id: loki", "secret_access_key: supersecret", "auth_enabled: false"),
     "codestra/config/loki.yaml",
 )
+ruler_lines = loki_text.splitlines()
+try:
+    ruler_index = next(index for index, line in enumerate(ruler_lines) if line.strip() == "ruler:" and not line.startswith((" ", "\t")))
+except StopIteration:
+    fail("codestra/config/loki.yaml must define the ruler")
+body_lines: list[str] = []
+for line in ruler_lines[ruler_index + 1 :]:
+    if line and not line.startswith((" ", "\t")):
+        break
+    body_lines.append(line)
+if any(re.fullmatch(r"  storage:\s*", line) for line in body_lines):
+    fail("ruler storage must use top-level ruler_storage with Thanos object storage")
 
 runtime_tenants = set(re.findall(r"^  ([a-z0-9-]+):\s*$", runtime_text, flags=re.MULTILINE))
 if runtime_tenants != TENANTS:
@@ -176,7 +190,9 @@ for forbidden in ("customer", "account", "email", "phone", "user_id", "tenant_id
 require_fragments(
     compose_text,
     (
-        "LOKI_IMAGE:?set an immutable",
+        "LOKI_IMAGE_REPOSITORY:-grafana/loki",
+        "LOKI_IMAGE_VERSION:?must be the health-compatible Loki version 3.6.5",
+        "LOKI_IMAGE_DIGEST:?set exactly 64 lowercase hexadecimal digest characters",
         "read_only: true",
         "no-new-privileges:true",
         "cap_drop:",
@@ -184,9 +200,9 @@ require_fragments(
         "loki-1:",
         "loki-2:",
         "loki-3:",
-        "COMPACTOR_MODE: coordinator",
+        "COMPACTOR_MODE: main",
         "codestra-observability",
-        "-verify-config",
+        'test: ["CMD", "/usr/bin/loki", "-health"]',
     ),
     "codestra/deploy/compose.candidate.yaml",
 )
