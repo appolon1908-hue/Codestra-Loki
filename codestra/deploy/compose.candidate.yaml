@@ -15,7 +15,7 @@ x-loki-environment: &loki-environment
   OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
 
 x-loki-service: &loki-service
-  image: ${LOKI_IMAGE:?set an immutable grafana/loki image reference including sha256 digest}
+  image: ${LOKI_IMAGE_REPOSITORY:-grafana/loki}:${LOKI_IMAGE_VERSION:?must be the health-compatible Loki version 3.6.5}@sha256:${LOKI_IMAGE_DIGEST:?set exactly 64 lowercase hexadecimal digest characters}
   command:
     - -config.file=/etc/loki/loki.yaml
     - -config.expand-env=true
