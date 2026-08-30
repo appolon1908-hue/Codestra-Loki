@@ -10,22 +10,16 @@ services:
       - ALL
     security_opt:
       - no-new-privileges:true
-    entrypoint:
-      - /bin/sh
-      - -ec
     command:
-      - |
-        export LOKI_S3_ACCESS_KEY_ID="$$(cat /run/secrets/loki_s3_access_key_id)"
-        export LOKI_S3_SECRET_ACCESS_KEY="$$(cat /run/secrets/loki_s3_secret_access_key)"
-        exec /usr/bin/loki \
-          -config.file=/etc/loki/loki.yaml \
-          -config.expand-env=true
+      - -config.file=/etc/loki/loki.yaml
+      - -config.expand-env=true
     environment:
       LOKI_S3_ENDPOINT: ${LOKI_S3_ENDPOINT:?set the private object-storage endpoint}
       LOKI_S3_BUCKET: ${LOKI_S3_BUCKET:?set the dedicated Loki bucket}
+      AWS_SHARED_CREDENTIALS_FILE: /run/secrets/loki_s3_credentials
+      AWS_PROFILE: codestra-loki
     secrets:
-      - loki_s3_access_key_id
-      - loki_s3_secret_access_key
+      - loki_s3_credentials
     volumes:
       - ./loki.yaml:/etc/loki/loki.yaml:ro
       - ./overrides.yaml:/etc/loki/runtime/overrides.yaml:ro
@@ -45,10 +39,8 @@ services:
           memory: 2G
 
 secrets:
-  loki_s3_access_key_id:
-    file: ${LOKI_S3_ACCESS_KEY_ID_FILE:?mount an OpenBao-rendered access-key file}
-  loki_s3_secret_access_key:
-    file: ${LOKI_S3_SECRET_ACCESS_KEY_FILE:?mount an OpenBao-rendered secret-key file}
+  loki_s3_credentials:
+    file: ${LOKI_S3_CREDENTIALS_FILE:?mount an OpenBao-rendered AWS shared-credentials file with the codestra-loki profile}
 
 volumes:
   loki_data:

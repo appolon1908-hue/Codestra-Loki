@@ -21,8 +21,6 @@ common:
     s3:
       endpoint: ${LOKI_S3_ENDPOINT}
       bucketnames: ${LOKI_S3_BUCKET}
-      access_key_id: ${LOKI_S3_ACCESS_KEY_ID}
-      secret_access_key: ${LOKI_S3_SECRET_ACCESS_KEY}
       s3forcepathstyle: true
       insecure: false
 

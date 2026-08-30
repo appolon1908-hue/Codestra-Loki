@@ -155,6 +155,8 @@ require_fragments(
         "LOKI_S3_ACCESS_KEY_ID",
         "LOKI_S3_SECRET_ACCESS_KEY",
         "LOKI_ALERTMANAGER_URL",
+        "ruler_storage:",
+        "backend: s3",
     ),
     "codestra/config/loki.yaml",
 )
@@ -163,6 +165,11 @@ reject_fragments(
     ("access_key_id: loki", "secret_access_key: supersecret", "auth_enabled: false"),
     "codestra/config/loki.yaml",
 )
+ruler_match = re.search(r"(?ms)^ruler:\s*\n(?P<body>(?:^[ \t]+.*\n?)*)", loki_text)
+if ruler_match is None:
+    fail("codestra/config/loki.yaml must define the ruler")
+if re.search(r"(?m)^  storage:\s*$", ruler_match.group("body")):
+    fail("ruler storage must use top-level ruler_storage with Thanos object storage")
 
 runtime_tenants = set(re.findall(r"^  ([a-z0-9-]+):\s*$", runtime_text, flags=re.MULTILINE))
 if runtime_tenants != TENANTS:
@@ -184,9 +191,9 @@ require_fragments(
         "loki-1:",
         "loki-2:",
         "loki-3:",
-        "COMPACTOR_MODE: coordinator",
+        "COMPACTOR_MODE: main",
         "codestra-observability",
-        "-verify-config",
+        'test: ["CMD", "/usr/bin/loki", "-health"]',
     ),
     "codestra/deploy/compose.candidate.yaml",
 )
