@@ -5,6 +5,7 @@ on:
     paths:
       - 'codestra/**'
       - 'scripts/validate_codestra_enterprise_profile.py'
+      - 'scripts/validate_codestra_sensitive_values.py'
       - '.github/workflows/validate-codestra-enterprise-profile.yml'
       - 'upstream/go.mod'
       - 'upstream/go.sum'
@@ -13,6 +14,7 @@ on:
     paths:
       - 'codestra/**'
       - 'scripts/validate_codestra_enterprise_profile.py'
+      - 'scripts/validate_codestra_sensitive_values.py'
       - '.github/workflows/validate-codestra-enterprise-profile.yml'
       - 'upstream/go.mod'
       - 'upstream/go.sum'
@@ -37,8 +39,15 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Validate Codestra policy overlay
-        run: python3 scripts/validate_codestra_enterprise_profile.py
+      - name: Validate Codestra policy overlay and credential-value safety
+        env:
+          PYTHONPYCACHEPREFIX: /tmp/codestra-loki-pycache
+        run: |
+          python3 -m py_compile \
+            scripts/validate_codestra_enterprise_profile.py \
+            scripts/validate_codestra_sensitive_values.py
+          python3 scripts/validate_codestra_enterprise_profile.py
+          python3 scripts/validate_codestra_sensitive_values.py
 
       - name: Render hardened Compose candidate
         run: |
@@ -57,7 +66,9 @@ jobs:
 
       - name: Build Loki config validator from locked source
         working-directory: upstream
-        run: go build -trimpath -o ../.bin/loki ./cmd/loki
+        run: |
+          mkdir -p ../.bin
+          go build -trimpath -o ../.bin/loki ./cmd/loki
 
       - name: Verify Loki configuration with exact source
         env:
