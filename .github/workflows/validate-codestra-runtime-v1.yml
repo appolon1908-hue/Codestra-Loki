@@ -1,0 +1,73 @@
+name: Validate Codestra Loki runtime v1
+
+on:
+  pull_request:
+    paths:
+      - "codestra/runtime-v1/**"
+      - ".github/workflows/validate-codestra-runtime-v1.yml"
+  push:
+    branches:
+      - development
+      - test
+      - staging
+      - production
+      - main
+    paths:
+      - "codestra/runtime-v1/**"
+      - ".github/workflows/validate-codestra-runtime-v1.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install pinned YAML parser
+        run: python -m pip install --disable-pip-version-check PyYAML==6.0.2
+      - name: Validate YAML and Codestra security contract
+        shell: python
+        run: |
+          from pathlib import Path
+          import yaml
+
+          root = Path("codestra/runtime-v1")
+          loki = yaml.safe_load((root / "loki.yaml").read_text())
+          overrides = yaml.safe_load((root / "overrides.yaml").read_text())["overrides"]
+          compose_text = (root / "compose.yaml").read_text()
+          compose = yaml.safe_load(compose_text)
+
+          required = {
+              "platform", "codestra", "moneybee", "beyvra", "breero",
+              "larim-a", "transportation", "booked4seasons", "social",
+              "klyrow", "telnexa", "kyqra", "restaurant", "provisioning",
+          }
+          assert loki["auth_enabled"] is True
+          assert loki["schema_config"]["configs"][0]["schema"] == "v13"
+          assert loki["schema_config"]["configs"][0]["store"] == "tsdb"
+          assert loki["compactor"]["retention_enabled"] is True
+          assert loki["runtime_config"]["file"].endswith("overrides.yaml")
+          assert loki["analytics"]["reporting_enabled"] is False
+          assert required == set(overrides), sorted(required ^ set(overrides))
+          assert all(v["retention_period"] for v in overrides.values())
+          assert "ports" not in compose["services"]["loki"]
+          assert compose["services"]["loki"]["read_only"] is True
+          assert "ALL" in compose["services"]["loki"]["cap_drop"]
+          assert "entrypoint" not in compose["services"]["loki"]
+          assert compose["services"]["loki"]["command"] == [
+              "-config.file=/etc/loki/loki.yaml",
+              "-config.expand-env=true",
+          ]
+          assert compose["services"]["loki"]["environment"]["AWS_SHARED_CREDENTIALS_FILE"] == "/run/secrets/loki_s3_credentials"
+          assert set(compose["services"]["loki"]["secrets"]) == {"loki_s3_credentials"}
+          assert "access_key_id" not in loki["common"]["storage"]["s3"]
+          assert "secret_access_key" not in loki["common"]["storage"]["s3"]
+          assert "latest" not in compose_text.lower()
+          assert "/run/secrets/" in compose_text
+          forbidden = ("supersecret", "authorization: bearer", "private_key", "root_token")
+          lowered = (root / "loki.yaml").read_text().lower() + compose_text.lower()
+          assert not any(value in lowered for value in forbidden)
+          print("Codestra Loki runtime validation PASS")
+      - name: Validate Compose structure without resolving runtime secrets
+        run: docker compose -f codestra/runtime-v1/compose.yaml config --no-interpolate >/dev/null
