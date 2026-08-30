@@ -15,7 +15,7 @@ x-loki-environment: &loki-environment
   OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
 
 x-loki-service: &loki-service
-  image: ${LOKI_IMAGE:?set an immutable grafana/loki image reference including sha256 digest}
+  image: ${LOKI_IMAGE_REPOSITORY:-grafana/loki}:${LOKI_IMAGE_VERSION:?must be the health-compatible Loki version 3.6.5}@sha256:${LOKI_IMAGE_DIGEST:?set exactly 64 lowercase hexadecimal digest characters}
   command:
     - -config.file=/etc/loki/loki.yaml
     - -config.expand-env=true
@@ -42,7 +42,7 @@ x-loki-service: &loki-service
       soft: 65536
       hard: 65536
   healthcheck:
-    test: ["CMD", "/usr/bin/loki", "-verify-config", "-config.file=/etc/loki/loki.yaml", "-config.expand-env=true"]
+    test: ["CMD", "/usr/bin/loki", "-health"]
     interval: 30s
     timeout: 20s
     retries: 5
@@ -75,7 +75,7 @@ services:
     environment:
       <<: *loki-environment
       LOKI_INSTANCE_ID: loki-1
-      COMPACTOR_MODE: coordinator
+      COMPACTOR_MODE: main
     volumes:
       - ../config/loki.yaml:/etc/loki/loki.yaml:ro
       - ../config/runtime-config.yaml:/etc/loki/runtime-config.yaml:ro

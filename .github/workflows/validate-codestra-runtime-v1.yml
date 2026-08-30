@@ -54,6 +54,15 @@ jobs:
           assert "ports" not in compose["services"]["loki"]
           assert compose["services"]["loki"]["read_only"] is True
           assert "ALL" in compose["services"]["loki"]["cap_drop"]
+          assert "entrypoint" not in compose["services"]["loki"]
+          assert compose["services"]["loki"]["command"] == [
+              "-config.file=/etc/loki/loki.yaml",
+              "-config.expand-env=true",
+          ]
+          assert compose["services"]["loki"]["environment"]["AWS_SHARED_CREDENTIALS_FILE"] == "/run/secrets/loki_s3_credentials"
+          assert set(compose["services"]["loki"]["secrets"]) == {"loki_s3_credentials"}
+          assert "access_key_id" not in loki["common"]["storage"]["s3"]
+          assert "secret_access_key" not in loki["common"]["storage"]["s3"]
           assert "latest" not in compose_text.lower()
           assert "/run/secrets/" in compose_text
           forbidden = ("supersecret", "authorization: bearer", "private_key", "root_token")
