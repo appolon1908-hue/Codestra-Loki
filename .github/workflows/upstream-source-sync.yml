@@ -79,11 +79,67 @@ jobs:
           }, indent=2) + '\n')
           PY
 
+          SYNC_BRANCH="sync/loki-upstream-${UPSTREAM_SHA}"
+          EXPECTED_UPSTREAM_TREE="$(git rev-parse "${UPSTREAM_SHA}^{tree}")"
+          EXPECTED_LOCK_BLOB="$(git hash-object CODESTRA_UPSTREAM_LOCK.json)"
+          REMOTE_SHA="$(git ls-remote --heads origin "refs/heads/${SYNC_BRANCH}" | awk '{print $1}')"
+          mapfile -t OPEN_PRS < <(
+            gh pr list --repo "$GITHUB_REPOSITORY" --state open \
+              --base main --head "$SYNC_BRANCH" --json number --jq '.[].number'
+          )
+          if (( ${#OPEN_PRS[@]} > 1 )); then
+            echo 'Multiple open synchronization pull requests found.' >&2
+            exit 3
+          fi
+
+          if [[ -n "$REMOTE_SHA" ]]; then
+            git fetch --no-tags origin \
+              "refs/heads/${SYNC_BRANCH}:refs/remotes/origin/${SYNC_BRANCH}"
+            [[ "$(git cat-file -t "$REMOTE_SHA")" == commit ]]
+            mapfile -t REMOTE_COMMIT_WORDS < <(git rev-list --parents -n 1 "$REMOTE_SHA")
+            read -r -a REMOTE_COMMIT_WORDS <<< "${REMOTE_COMMIT_WORDS[0]}"
+            (( ${#REMOTE_COMMIT_WORDS[@]} == 2 )) || {
+              echo 'Existing sync branch is not a single-parent reviewed commit.' >&2
+              exit 3
+            }
+            REMOTE_PARENT="${REMOTE_COMMIT_WORDS[1]}"
+            git merge-base --is-ancestor "$REMOTE_PARENT" "$GITHUB_SHA" || {
+              echo 'Existing sync branch parent is not protected-main history.' >&2
+              exit 3
+            }
+            REMOTE_UPSTREAM_TREE="$(git rev-parse "${REMOTE_SHA}:upstream")"
+            REMOTE_LOCK_BLOB="$(git rev-parse "${REMOTE_SHA}:CODESTRA_UPSTREAM_LOCK.json")"
+            [[ "$REMOTE_UPSTREAM_TREE" == "$EXPECTED_UPSTREAM_TREE" ]]
+            [[ "$REMOTE_LOCK_BLOB" == "$EXPECTED_LOCK_BLOB" ]]
+            mapfile -t REMOTE_CONTROL_CHANGES < <(
+              git diff --name-only "$REMOTE_PARENT" "$REMOTE_SHA" -- . ':(exclude)upstream'
+            )
+            (( ${#REMOTE_CONTROL_CHANGES[@]} == 1 )) && \
+              [[ "${REMOTE_CONTROL_CHANGES[0]}" == CODESTRA_UPSTREAM_LOCK.json ]] || {
+              echo 'Existing sync branch contains an unexpected control-plane change.' >&2
+              exit 3
+            }
+
+            if (( ${#OPEN_PRS[@]} == 0 )); then
+              gh pr create \
+                --repo "$GITHUB_REPOSITORY" \
+                --base main \
+                --head "$SYNC_BRANCH" \
+                --title "vendor(loki): Sync reviewed official upstream ${UPSTREAM_SHA}" \
+                --body "Pins and imports exact official Loki commit ${UPSTREAM_SHA}. Deployment remains disabled. Normal source validation and independent review are required."
+            fi
+            gh workflow run validate.yml --repo "$GITHUB_REPOSITORY" --ref "$SYNC_BRANCH"
+            exit 0
+          fi
+
+          (( ${#OPEN_PRS[@]} == 0 )) || {
+            echo 'Open synchronization pull request has no matching remote branch.' >&2
+            exit 3
+          }
           git config user.name 'codestra-upstream-sync'
           git config user.email 'github-actions[bot]@users.noreply.github.com'
           export GIT_AUTHOR_DATE="$UPSTREAM_TIMESTAMP"
           export GIT_COMMITTER_DATE="$UPSTREAM_TIMESTAMP"
-          SYNC_BRANCH="sync/loki-upstream-${UPSTREAM_SHA}"
           git switch --create "$SYNC_BRANCH"
           git fetch --depth 1 --no-tags "$UPSTREAM_URL" "$UPSTREAM_SHA"
           git rm -r --cached --quiet --ignore-unmatch upstream
@@ -94,31 +150,12 @@ jobs:
             exit 0
           fi
           git commit -m "vendor(loki): Sync official upstream ${UPSTREAM_SHA}"
+          git push origin "HEAD:refs/heads/${SYNC_BRANCH}"
 
-          LOCAL_SHA="$(git rev-parse HEAD)"
-          REMOTE_SHA="$(git ls-remote --heads origin "refs/heads/${SYNC_BRANCH}" | awk '{print $1}')"
-          if [[ -n "$REMOTE_SHA" ]]; then
-            [[ "$REMOTE_SHA" == "$LOCAL_SHA" ]] || {
-              echo 'Existing sync branch differs; refusing replacement.' >&2
-              exit 3
-            }
-          else
-            git push origin "HEAD:refs/heads/${SYNC_BRANCH}"
-          fi
-
-          mapfile -t OPEN_PRS < <(
-            gh pr list --repo "$GITHUB_REPOSITORY" --state open \
-              --head "$SYNC_BRANCH" --json number --jq '.[].number'
-          )
-          if (( ${#OPEN_PRS[@]} > 1 )); then
-            echo 'Multiple open synchronization pull requests found.' >&2
-            exit 3
-          elif (( ${#OPEN_PRS[@]} == 0 )); then
-            gh pr create \
-              --repo "$GITHUB_REPOSITORY" \
-              --base main \
-              --head "$SYNC_BRANCH" \
-              --title "vendor(loki): Sync reviewed official upstream ${UPSTREAM_SHA}" \
-              --body "Pins and imports exact official Loki commit ${UPSTREAM_SHA}. Deployment remains disabled. Normal source validation and independent review are required."
-          fi
+          gh pr create \
+            --repo "$GITHUB_REPOSITORY" \
+            --base main \
+            --head "$SYNC_BRANCH" \
+            --title "vendor(loki): Sync reviewed official upstream ${UPSTREAM_SHA}" \
+            --body "Pins and imports exact official Loki commit ${UPSTREAM_SHA}. Deployment remains disabled. Normal source validation and independent review are required."
           gh workflow run validate.yml --repo "$GITHUB_REPOSITORY" --ref "$SYNC_BRANCH"

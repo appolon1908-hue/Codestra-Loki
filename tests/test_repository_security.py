@@ -44,11 +44,23 @@ class RepositorySecurityTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "protected_branch_sync_forbidden"):
             VALIDATOR.validate_sync(unsafe, self.sync_document)
         for token in (
-            '[[ "$REMOTE_SHA" == "$LOCAL_SHA" ]]',
+            '[[ "$REMOTE_UPSTREAM_TREE" == "$EXPECTED_UPSTREAM_TREE" ]]',
+            '[[ "$REMOTE_LOCK_BLOB" == "$EXPECTED_LOCK_BLOB" ]]',
+            '[[ "${REMOTE_CONTROL_CHANGES[0]}" == CODESTRA_UPSTREAM_LOCK.json ]]',
             "if (( ${#OPEN_PRS[@]} > 1 )); then",
             'export GIT_AUTHOR_DATE="$UPSTREAM_TIMESTAMP"',
         ):
             self.assertIn(token, self.sync_source)
+
+    def test_existing_sync_branch_is_reused_before_creating_a_commit(self) -> None:
+        remote_branch = self.sync_source.index('if [[ -n "$REMOTE_SHA" ]]')
+        local_commit = self.sync_source.index('git commit -m')
+        self.assertLess(remote_branch, local_commit)
+        self.assertIn(
+            "git diff --name-only \"$REMOTE_PARENT\" \"$REMOTE_SHA\" -- . ':(exclude)upstream'",
+            self.sync_source,
+        )
+        self.assertIn('exit 0\n          fi', self.sync_source)
 
     def test_bot_created_pr_dispatches_exact_branch_validation(self) -> None:
         self.assertEqual(
@@ -119,6 +131,7 @@ class RepositorySecurityTests(unittest.TestCase):
                 "gh" + "p_" + ("A" * 24),
                 "github" + "_pat_" + ("B" * 24),
                 "AK" + "IA" + ("C" * 16),
+                "AS" + "IA" + ("E" * 16),
                 "gl" + "pat-" + ("D" * 24),
                 "-----BEGIN PRIVATE" + " KEY-----\nfixture",
                 "-----BEGIN ENCRYPTED PRIVATE" + " KEY-----\nfixture",
