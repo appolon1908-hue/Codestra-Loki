@@ -3,6 +3,9 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
+import subprocess
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -85,6 +88,24 @@ class RepositorySecurityTests(unittest.TestCase):
             'git diff --check "$base_sha" "$GITHUB_SHA" -- . \':(exclude)upstream\'',
             source,
         )
+
+    def test_secret_scan_errors_fail_even_when_a_secret_also_matches(self) -> None:
+        scanner = ROOT / "scripts/reject_repository_secrets.sh"
+        VALIDATOR.validate_secret_scanner(scanner.read_text())
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            os.symlink(root / "missing", root / "dangling")
+            (root / "credential.txt").write_text(
+                "Author"
+                + "ization: "
+                + "Bearer "
+                + "abc/def+ghijklmnopqrstuvwxyz==\n"
+            )
+            result = subprocess.run(
+                [scanner, root], check=False, capture_output=True, text=True
+            )
+            self.assertGreater(result.returncode, 1)
+            self.assertIn("symbolic link", result.stderr)
 
 
 if __name__ == "__main__":

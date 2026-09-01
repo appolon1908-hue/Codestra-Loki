@@ -10,6 +10,7 @@ from pathlib import Path
 import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
+SECRET_SCANNER_PATH = ROOT / "scripts/reject_repository_secrets.sh"
 EXPECTED_GITMODULES = """[submodule \"upstream/operator/website/themes/doks\"]
 \tpath = upstream/operator/website/themes/doks
 \turl = https://github.com/h-enk/doks.git
@@ -97,6 +98,28 @@ def validate_workflow(source: str) -> None:
         raise ValueError("whitespace_check_must_use_committed_range")
 
 
+def validate_secret_scanner(source: str) -> None:
+    required = (
+        'find "$search_root"',
+        '-path "$search_root/.git"',
+        '-path "$search_root/upstream"',
+        '-path "$search_root/tests"',
+        "-type f -o -type l",
+        '[[ -L "$path" ]]',
+        "grep -aEiq",
+        "find_status=$?",
+        "secret_scan_status=$?",
+        'exit "$secret_scan_status"',
+    )
+    for token in required:
+        if token not in source:
+            raise ValueError(f"secret_scan_boundary_missing:{token}")
+    if re.search(r"!\s+grep\s+-R", source):
+        raise ValueError("secret_scan_errors_must_fail_closed")
+    if re.search(r"grep\s+-[^\n]*I", source):
+        raise ValueError("binary_secret_scan_must_not_be_skipped")
+
+
 def validate_gitmodules(source: str) -> None:
     if source != EXPECTED_GITMODULES:
         raise ValueError("root_gitmodule_mapping_drift")
@@ -109,6 +132,7 @@ def validate_repository() -> None:
         "sync": ROOT / ".github/workflows/upstream-source-sync.yml",
         "validate": ROOT / ".github/workflows/validate.yml",
         "gitmodules": ROOT / ".gitmodules",
+        "secret_scanner": SECRET_SCANNER_PATH,
     }
     for path in paths.values():
         if not path.is_file() or path.is_symlink():
@@ -121,6 +145,7 @@ def validate_repository() -> None:
     validate_sync(sync_source, yaml.safe_load(sync_source))
     yaml.safe_load(validate_source)
     validate_workflow(validate_source)
+    validate_secret_scanner(paths["secret_scanner"].read_text())
     validate_gitmodules(paths["gitmodules"].read_text())
     if (ROOT / "upstream/.git").exists():
         raise ValueError("nested_upstream_git_metadata_forbidden")
