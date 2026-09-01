@@ -99,11 +99,12 @@ def validate_workflow(source: str) -> None:
 
 
 def validate_secret_scanner(source: str) -> None:
+    if '-path "$search_root/tests"' in source or "--exclude-dir=tests" in source:
+        raise ValueError("repository_tests_must_be_secret_scanned")
     required = (
         'find "$search_root"',
         '-path "$search_root/.git"',
         '-path "$search_root/upstream"',
-        '-path "$search_root/tests"',
         "-type f -o -type l",
         '[[ -L "$path" ]]',
         "grep -aEiq",

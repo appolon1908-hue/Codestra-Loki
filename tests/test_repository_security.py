@@ -107,6 +107,30 @@ class RepositorySecurityTests(unittest.TestCase):
             self.assertGreater(result.returncode, 1)
             self.assertIn("symbolic link", result.stderr)
 
+    def test_repository_tests_and_common_access_tokens_are_secret_scanned(self) -> None:
+        scanner = ROOT / "scripts/reject_repository_secrets.sh"
+        source = scanner.read_text()
+        self.assertNotIn('-path "$search_root/tests"', source)
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            fixture = root / "tests/provider/credential.txt"
+            fixture.parent.mkdir(parents=True)
+            credentials = (
+                "gh" + "p_" + ("A" * 24),
+                "github" + "_pat_" + ("B" * 24),
+                "AK" + "IA" + ("C" * 16),
+                "gl" + "pat-" + ("D" * 24),
+                "-----BEGIN PRIVATE" + " KEY-----\nfixture",
+                "-----BEGIN ENCRYPTED PRIVATE" + " KEY-----\nfixture",
+                "-----BEGIN PGP PRIVATE" + " KEY BLOCK-----\nfixture",
+            )
+            for credential in credentials:
+                fixture.write_text(credential + "\n")
+                result = subprocess.run(
+                    [scanner, root], check=False, capture_output=True, text=True
+                )
+                self.assertEqual(result.returncode, 1, credential[:8])
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

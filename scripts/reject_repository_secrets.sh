@@ -2,14 +2,13 @@
 set -Eeuo pipefail
 
 search_root="${1:-.}"
-pattern="(BEGIN ([A-Z0-9][A-Z0-9 -]{0,63} )?PRIVATE KEY|[\"']?Authorization[\"']?[[:space:]]*:[[:space:]]*[\"']?[[:space:]]*Bearer[[:space:]]+[-A-Za-z0-9._~+/]{16,}=*|[\"']?client_secret[\"']?[[:space:]]*[:=][[:space:]]*[^[:space:]<]+)"
+pattern="(BEGIN ([A-Z0-9][A-Z0-9 -]{0,63} )?PRIVATE KEY( BLOCK)?|[\"']?Authorization[\"']?[[:space:]]*:[[:space:]]*[\"']?[[:space:]]*Bearer[[:space:]]+([-A-Za-z0-9._~+]|\\\\?/){16,}=*|[\"']?client_secret[\"']?[[:space:]]*[:=][[:space:]]*[^[:space:]<]+|gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|AKIA[0-9A-Z]{16}|glpat-[A-Za-z0-9_-]{20,})"
 path_list="$(mktemp)"
 trap 'rm -f -- "$path_list"' EXIT
 
 set +e
 find "$search_root" \
-  \( -path "$search_root/.git" -o -path "$search_root/upstream" -o \
-     -path "$search_root/tests" \) -prune -o \
+  \( -path "$search_root/.git" -o -path "$search_root/upstream" \) -prune -o \
   \( -type f -o -type l \) -print0 > "$path_list"
 find_status=$?
 set -e
