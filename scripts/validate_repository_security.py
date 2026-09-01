@@ -10,6 +10,10 @@ from pathlib import Path
 import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
+EXPECTED_GITMODULES = """[submodule \"upstream/operator/website/themes/doks\"]
+\tpath = upstream/operator/website/themes/doks
+\turl = https://github.com/h-enk/doks.git
+"""
 
 
 def validate_upstream(source: dict, lock: dict) -> None:
@@ -89,12 +93,18 @@ def validate_workflow(source: str) -> None:
         raise ValueError("pull_request_validation_must_be_unconditional")
 
 
+def validate_gitmodules(source: str) -> None:
+    if source != EXPECTED_GITMODULES:
+        raise ValueError("root_gitmodule_mapping_drift")
+
+
 def validate_repository() -> None:
     paths = {
         "source": ROOT / "CODESTRA_UPSTREAM.json",
         "lock": ROOT / "CODESTRA_UPSTREAM_LOCK.json",
         "sync": ROOT / ".github/workflows/upstream-source-sync.yml",
         "validate": ROOT / ".github/workflows/validate.yml",
+        "gitmodules": ROOT / ".gitmodules",
     }
     for path in paths.values():
         if not path.is_file() or path.is_symlink():
@@ -107,6 +117,7 @@ def validate_repository() -> None:
     validate_sync(sync_source, yaml.safe_load(sync_source))
     yaml.safe_load(validate_source)
     validate_workflow(validate_source)
+    validate_gitmodules(paths["gitmodules"].read_text())
     if (ROOT / "upstream/.git").exists():
         raise ValueError("nested_upstream_git_metadata_forbidden")
 
