@@ -57,7 +57,7 @@ def validate_sync(source: str, document: dict) -> None:
         "[[ \"$UPSTREAM_SHA\" == \"$UPSTREAM_REF\" ]]",
         'SYNC_BRANCH="sync/loki-upstream-${UPSTREAM_SHA}"',
         'git read-tree --prefix=upstream/ "${UPSTREAM_SHA}^{tree}"',
-        'EXPECTED_UPSTREAM_TREE="$(git rev-parse "${UPSTREAM_SHA}^{tree}")"',
+        "EXPECTED_UPSTREAM_TREE=\"$(git -C .codestra-upstream-src rev-parse 'HEAD^{tree}')\"",
         "EXPECTED_LOCK_BLOB=\"$(git hash-object CODESTRA_UPSTREAM_LOCK.json)\"",
         'REMOTE_UPSTREAM_TREE="$(git rev-parse "${REMOTE_SHA}:upstream")"',
         'REMOTE_LOCK_BLOB="$(git rev-parse "${REMOTE_SHA}:CODESTRA_UPSTREAM_LOCK.json")"',
@@ -79,6 +79,10 @@ def validate_sync(source: str, document: dict) -> None:
             raise ValueError(f"reviewed_sync_boundary_missing:{token}")
     if source.index('if [[ -n "$REMOTE_SHA" ]]') > source.index('git commit -m'):
         raise ValueError("existing_sync_branch_must_be_reused_before_commit")
+    if source.index("EXPECTED_UPSTREAM_TREE=") > source.index(
+        "rm -rf .codestra-upstream-src/.git"
+    ):
+        raise ValueError("upstream_tree_must_be_captured_before_metadata_removal")
 
 
 def validate_workflow(source: str) -> None:

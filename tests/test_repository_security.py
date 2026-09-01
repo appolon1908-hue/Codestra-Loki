@@ -62,6 +62,17 @@ class RepositorySecurityTests(unittest.TestCase):
         )
         self.assertIn('exit 0\n          fi', self.sync_source)
 
+    def test_upstream_tree_is_captured_before_temporary_git_metadata_is_removed(self) -> None:
+        capture = self.sync_source.index(
+            "EXPECTED_UPSTREAM_TREE=\"$(git -C .codestra-upstream-src rev-parse 'HEAD^{tree}')\""
+        )
+        removal = self.sync_source.index("rm -rf .codestra-upstream-src/.git")
+        remote_comparison = self.sync_source.index(
+            '[[ "$REMOTE_UPSTREAM_TREE" == "$EXPECTED_UPSTREAM_TREE" ]]'
+        )
+        self.assertLess(capture, removal)
+        self.assertLess(removal, remote_comparison)
+
     def test_bot_created_pr_dispatches_exact_branch_validation(self) -> None:
         self.assertEqual(
             self.sync_document["permissions"],

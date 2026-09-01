@@ -58,6 +58,7 @@ jobs:
           git -C .codestra-upstream-src checkout --quiet --detach FETCH_HEAD
           UPSTREAM_SHA="$(git -C .codestra-upstream-src rev-parse HEAD)"
           [[ "$UPSTREAM_SHA" == "$UPSTREAM_REF" ]]
+          EXPECTED_UPSTREAM_TREE="$(git -C .codestra-upstream-src rev-parse 'HEAD^{tree}')"
           UPSTREAM_TIMESTAMP="$(git -C .codestra-upstream-src show -s --format=%cI "$UPSTREAM_SHA")"
           rm -rf .codestra-upstream-src/.git
           mv .codestra-upstream-src "$IMPORT_PATH"
@@ -80,7 +81,6 @@ jobs:
           PY
 
           SYNC_BRANCH="sync/loki-upstream-${UPSTREAM_SHA}"
-          EXPECTED_UPSTREAM_TREE="$(git rev-parse "${UPSTREAM_SHA}^{tree}")"
           EXPECTED_LOCK_BLOB="$(git hash-object CODESTRA_UPSTREAM_LOCK.json)"
           REMOTE_SHA="$(git ls-remote --heads origin "refs/heads/${SYNC_BRANCH}" | awk '{print $1}')"
           mapfile -t OPEN_PRS < <(
