@@ -43,6 +43,7 @@ jobs:
         env:
           PYTHONPYCACHEPREFIX: /tmp/codestra-loki-pycache
         run: |
+          python3 -m pip install --disable-pip-version-check --no-cache-dir -r requirements-validation.txt
           python3 -m py_compile \
             scripts/validate_codestra_enterprise_profile.py \
             scripts/validate_codestra_sensitive_values.py

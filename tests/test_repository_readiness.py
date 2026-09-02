@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import importlib.util
 import json
 import subprocess
 import tarfile
@@ -32,6 +33,28 @@ class ReadinessTests(unittest.TestCase):
         self.assertIn("AWS_SHARED_CREDENTIALS_FILE: /run/secrets/loki_s3_credentials", compose)
         self.assertNotIn("LOKI_S3_SECRET_ACCESS_KEY", compose + config)
         self.assertNotIn("access_key_id:", config)
+
+    def test_sensitive_value_gate_scans_signed_yaml(self) -> None:
+        path = ROOT / "scripts/validate_codestra_sensitive_values.py"
+        spec = importlib.util.spec_from_file_location("loki_sensitive_values", path)
+        self.assertIsNotNone(spec)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        with tempfile.TemporaryDirectory() as directory:
+            codestra = Path(directory) / "codestra"
+            codestra.mkdir()
+            (codestra / "loki.yaml").write_text(
+                "storage_config:\n  object_store:\n    access_key_secret: committed-value\n"
+            )
+            module.ROOT = Path(directory)
+            module.CODESTRA = codestra
+            with self.assertRaises(SystemExit) as error:
+                module.main()
+            self.assertIn("codestra/loki.yaml", str(error.exception))
+
+    def test_corporate_gate_installs_pinned_yaml_parser(self) -> None:
+        workflow = (ROOT / ".github/workflows/validate-codestra-enterprise-profile.yml").read_text()
+        self.assertIn("pip install --disable-pip-version-check --no-cache-dir -r requirements-validation.txt", workflow)
 
     def test_release_identity_uses_service_contract_names(self) -> None:
         compose = (ROOT / "codestra/deploy/compose.candidate.yaml").read_text()
