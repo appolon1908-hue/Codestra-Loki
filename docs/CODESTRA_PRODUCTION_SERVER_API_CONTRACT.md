@@ -27,8 +27,9 @@ Expected protected responses may include `401`, `403`, `405`, `415`, `422`, or r
 
 - Native ingestion and administration ports are never Internet-published.
 - The approved edge may expose operator query access only after authentication.
-- mTLS and CA verification are mandatory for ingestion.
-- `codestra_business` is assigned by deployment-controlled identity; callers cannot select another business.
+- mTLS and CA verification are mandatory for ingestion. The ingress must require a client certificate, reject certificate-less clients, and reject untrusted, expired, or revoked client certificates.
+- `codestra_business` and the Loki tenant are assigned by deployment-controlled identity. Caller-supplied tenant headers, including `X-Scope-OrgID`, and caller-supplied business attributes are overwritten with the assigned value or rejected before ingestion.
+- A positive mTLS request alone is not tenancy proof: certification must attempt an authenticated cross-business tenant override and prove that the event is written only to the deployment-assigned tenant or is rejected.
 - Cross-business queries fail closed.
 - Customer IDs, tenant IDs, emails, phones, request IDs, trace IDs, message IDs, order IDs, payment IDs, and transaction IDs are prohibited as stream labels.
 - Secrets, credentials, cookies, raw bodies, database statements, signing material, and private keys are redacted or rejected before storage.
@@ -65,13 +66,18 @@ GET_/loki/api/v1/labels_ROUTE_EXISTS=PASS
 UNAUTHENTICATED_QUERY_DENIED=PASS
 WRONG_BUSINESS_QUERY_DENIED=PASS
 MTLS_INGESTION=PASS
+NO_CLIENT_CERT_INGESTION_DENIED=PASS
+UNTRUSTED_CLIENT_CERT_INGESTION_DENIED=PASS
+EXPIRED_OR_REVOKED_CLIENT_CERT_DENIED=PASS
+CALLER_TENANT_OVERRIDE_DENIED=PASS
+DEPLOYMENT_ASSIGNED_INGESTION_TENANT=PASS
 TLS_VERIFY=PASS
 UNEXPECTED_404=0
 UNEXPECTED_5XX=0
 SOURCE_RUNTIME_DRIFT=0
 ```
 
-Use only synthetic, clearly marked staging/canary log fixtures. Do not ingest customer payloads merely to prove routing.
+Use only synthetic, clearly marked staging/canary log fixtures. Do not ingest customer payloads merely to prove routing. The tenant-override fixture must be queried from both the assigned and attempted foreign tenant to prove no cross-business placement occurred.
 
 ## Recovery and rollback
 
