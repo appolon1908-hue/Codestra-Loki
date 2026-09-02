@@ -32,10 +32,10 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Check out exact head
-        uses: actions/checkout@v4
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
         with:
           python-version: '3.12'
 
@@ -59,7 +59,7 @@ jobs:
           ! grep -Eq 'published:|host_ip:|:latest([[:space:]]|$)' /tmp/codestra-loki-compose.rendered.yaml
 
       - name: Set up Go from locked upstream source
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16
         with:
           go-version-file: upstream/go.mod
           cache-dependency-path: upstream/go.sum
@@ -78,8 +78,6 @@ jobs:
           LOKI_S3_REGION: us-east-1
           LOKI_S3_CHUNKS_BUCKET: codestra-loki-ci
           LOKI_S3_RULER_BUCKET: codestra-loki-ruler-ci
-          LOKI_S3_ACCESS_KEY_ID: ci-placeholder
-          LOKI_S3_SECRET_ACCESS_KEY: ci-placeholder
           LOKI_S3_INSECURE: 'false'
           LOKI_ALERTMANAGER_URL: http://alertmanager:9093
         run: |

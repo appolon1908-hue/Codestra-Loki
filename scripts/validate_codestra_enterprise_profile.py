@@ -152,8 +152,7 @@ require_fragments(
         "delete_request_store: s3",
         "reporting_enabled: false",
         "enabled: true",
-        "LOKI_S3_ACCESS_KEY_ID",
-        "LOKI_S3_SECRET_ACCESS_KEY",
+        "native_aws_auth_enabled: true",
         "LOKI_ALERTMANAGER_URL",
         "ruler_storage:",
         "backend: s3",
@@ -190,9 +189,9 @@ for forbidden in ("customer", "account", "email", "phone", "user_id", "tenant_id
 require_fragments(
     compose_text,
     (
-        "LOKI_IMAGE_REPOSITORY:-grafana/loki",
-        "LOKI_IMAGE_VERSION:?must be the health-compatible Loki version 3.6.5",
-        "LOKI_IMAGE_DIGEST:?set exactly 64 lowercase hexadecimal digest characters",
+        "docker.io/grafana/loki@sha256:847c287ada0e12603910589f42038c5cdaaad04e248bd1dc6c6e0920a235f427",
+        "AWS_SHARED_CREDENTIALS_FILE: /run/secrets/loki_s3_credentials",
+        "LOKI_S3_CREDENTIALS_FILE:?mount an OpenBao-rendered AWS shared-credentials file",
         "read_only: true",
         "no-new-privileges:true",
         "cap_drop:",
@@ -222,9 +221,8 @@ reject_fragments(
     ("-----BEGIN PRIVATE KEY-----", "-----BEGIN OPENSSH PRIVATE KEY-----", "AKIA"),
     "codestra overlay",
 )
-for match in re.finditer(r"(?im)^LOKI_S3_SECRET_ACCESS_KEY=(.+)$", all_overlay_text):
-    value = match.group(1).strip()
-    if value not in {"INJECT_FROM_OPENBAO", "${LOKI_S3_SECRET_ACCESS_KEY:?injected by OpenBao or deployment secret store}"}:
-        fail("a populated S3 secret access key appears to be committed")
+for forbidden_assignment in ("LOKI_S3_ACCESS_KEY_ID=", "LOKI_S3_SECRET_ACCESS_KEY="):
+    if forbidden_assignment in all_overlay_text:
+        fail(f"inline object-store credential assignment is forbidden: {forbidden_assignment}")
 
 print("Codestra Loki corporate configuration validation PASS")
