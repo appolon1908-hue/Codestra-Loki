@@ -33,6 +33,15 @@ class ReadinessTests(unittest.TestCase):
         self.assertNotIn("LOKI_S3_SECRET_ACCESS_KEY", compose + config)
         self.assertNotIn("access_key_id:", config)
 
+    def test_release_identity_uses_service_contract_names(self) -> None:
+        compose = (ROOT / "codestra/deploy/compose.candidate.yaml").read_text()
+        contract = json.loads((ROOT / "codestra/api/service-contract.v1.json").read_text())
+        release = contract["release"]
+        self.assertIn(release["sourceRevisionEnvironment"] + ":", compose)
+        self.assertIn(release["imageDigestEnvironment"] + ":", compose)
+        self.assertNotIn("CODESTRA_SOURCE_SHA:", compose)
+        self.assertNotIn("CODESTRA_IMAGE_DIGEST:", compose)
+
 
 if __name__ == "__main__":
     unittest.main()
