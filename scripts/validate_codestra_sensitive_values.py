@@ -24,6 +24,7 @@ SENSITIVE_KEY_TOKENS = {
     "apikey",
     "clientsecret",
     "secretaccesskey",
+    "accesskeysecret",
     "accesstoken",
     "refreshtoken",
     "sessiontoken",
@@ -100,6 +101,7 @@ def prove_detector() -> None:
         {"awsSecretAccessKey": "committed-aws-secret-access-key"},
         {"private_key": "committed-private-key"},
         {"root-token": "committed-root-token"},
+        {"access_key_secret": "committed-object-store-secret"},
     )
     for sample in unsafe_samples:
         if not find_violations(sample):
