@@ -96,7 +96,12 @@ def main() -> None:
     config = (ROOT / "codestra/config/loki.yaml").read_text(encoding="utf-8")
     if config.count("native_aws_auth_enabled: true") != 2:
         fail("both S3 clients must use the mounted AWS credential chain")
-    if "access_key_id:" in config or "secret_access_key:" in config or "insecure: true" in config:
+    if (
+        "access_key_id:" in config
+        or "secret_access_key:" in config
+        or "access_key_secret:" in config
+        or "insecure: true" in config
+    ):
         fail("unsafe object-store credential or TLS configuration")
     release = yaml.safe_load((ROOT / ".github/workflows/release-config-bundle.yml").read_text())
     job = release.get("jobs", {}).get("release", {})

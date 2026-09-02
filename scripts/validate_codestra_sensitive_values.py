@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Reject committed credential values in Codestra Loki JSON control files."""
+"""Reject committed credential values in Codestra Loki JSON and YAML files."""
 
 from __future__ import annotations
 
@@ -8,6 +8,8 @@ import pathlib
 import re
 import sys
 from typing import Any
+
+import yaml
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 CODESTRA = ROOT / "codestra"
@@ -24,6 +26,7 @@ SENSITIVE_KEY_TOKENS = {
     "apikey",
     "clientsecret",
     "secretaccesskey",
+    "accesskeysecret",
     "accesstoken",
     "refreshtoken",
     "sessiontoken",
@@ -82,11 +85,14 @@ def find_violations(value: Any, path: str = "") -> list[str]:
     return violations
 
 
-def load_json(path: pathlib.Path) -> Any:
+def load_document(path: pathlib.Path) -> Any:
     try:
-        return json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
-        raise SystemExit(f"invalid JSON {path.relative_to(ROOT)}: {exc}")
+        text = path.read_text(encoding="utf-8")
+        if path.suffix == ".json":
+            return json.loads(text)
+        return yaml.safe_load(text)
+    except (OSError, json.JSONDecodeError, yaml.YAMLError) as exc:
+        raise SystemExit(f"invalid control document {path}: {exc}")
 
 
 def prove_detector() -> None:
@@ -100,6 +106,7 @@ def prove_detector() -> None:
         {"awsSecretAccessKey": "committed-aws-secret-access-key"},
         {"private_key": "committed-private-key"},
         {"root-token": "committed-root-token"},
+        {"access_key_secret": "committed-object-store-secret"},
     )
     for sample in unsafe_samples:
         if not find_violations(sample):
@@ -119,16 +126,20 @@ def prove_detector() -> None:
 
 def main() -> None:
     prove_detector()
-    json_files = sorted(CODESTRA.rglob("*.json"))
-    if not json_files:
-        raise SystemExit("no Codestra JSON control files found")
+    governed_files = sorted(
+        path
+        for path in CODESTRA.rglob("*")
+        if path.is_file() and path.suffix in {".json", ".yaml", ".yml"}
+    )
+    if not governed_files:
+        raise SystemExit("no Codestra JSON or YAML control files found")
     violations: list[str] = []
-    for path in json_files:
-        for field in find_violations(load_json(path)):
+    for path in governed_files:
+        for field in find_violations(load_document(path)):
             violations.append(f"{path.relative_to(ROOT)}:{field}")
     if violations:
         raise SystemExit(
-            "committed credential-like values found in Codestra JSON: "
+            "committed credential-like values found in Codestra control files: "
             + ", ".join(violations)
         )
     print("Codestra Loki sensitive-value validation PASS")
