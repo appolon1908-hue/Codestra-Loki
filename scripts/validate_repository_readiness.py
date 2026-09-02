@@ -86,8 +86,11 @@ def main() -> None:
         environment = service.get("environment", {})
         if environment.get("AWS_SHARED_CREDENTIALS_FILE") != "/run/secrets/loki_s3_credentials":
             fail(f"AWS credential-file identity mismatch: {name}")
-        if environment.get("CODESTRA_IMAGE_DIGEST") != "sha256:847c287ada0e12603910589f42038c5cdaaad04e248bd1dc6c6e0920a235f427":
+        if environment.get("CODESTRA_LOKI_IMAGE_DIGEST") != lock["image"].rsplit("@", 1)[1]:
             fail(f"runtime image read-back identity mismatch: {name}")
+        source_revision = str(environment.get("CODESTRA_LOKI_SOURCE_REVISION", ""))
+        if "CODESTRA_LOKI_SOURCE_REVISION" not in source_revision:
+            fail(f"runtime source read-back identity mismatch: {name}")
     if re.search(r"LOKI_S3_(?:ACCESS_KEY_ID|SECRET_ACCESS_KEY)", compose_text):
         fail("inline object-store credential environment is forbidden")
     config = (ROOT / "codestra/config/loki.yaml").read_text(encoding="utf-8")
