@@ -8,7 +8,8 @@ values, public Loki native ports, insecure object-store transport, or mutable im
 references. Production activation requires protected-lineage review outside this
 source-readiness change.
 
-The JSON credential detector covers both common object-store secret spellings:
+The JSON/YAML credential detector covers both common object-store secret spellings:
 `secret_access_key` and `access_key_secret`. Normalization must retain negative
 samples for both token orders so an OSS/Alibaba-style alias cannot bypass the
-repository gate.
+repository gate. The scan includes the signed `codestra/config/loki.yaml`
+bundle, Compose candidates, and all Codestra control JSON.
