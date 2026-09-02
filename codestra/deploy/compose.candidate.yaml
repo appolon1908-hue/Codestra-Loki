@@ -5,9 +5,11 @@ x-loki-environment: &loki-environment
   LOKI_S3_REGION: ${LOKI_S3_REGION:-us-east-1}
   LOKI_S3_CHUNKS_BUCKET: ${LOKI_S3_CHUNKS_BUCKET:?required}
   LOKI_S3_RULER_BUCKET: ${LOKI_S3_RULER_BUCKET:?required}
-  LOKI_S3_ACCESS_KEY_ID: ${LOKI_S3_ACCESS_KEY_ID:?injected by OpenBao or deployment secret store}
-  LOKI_S3_SECRET_ACCESS_KEY: ${LOKI_S3_SECRET_ACCESS_KEY:?injected by OpenBao or deployment secret store}
   LOKI_S3_INSECURE: ${LOKI_S3_INSECURE:-false}
+  AWS_SHARED_CREDENTIALS_FILE: /run/secrets/loki_s3_credentials
+  AWS_PROFILE: codestra-loki
+  CODESTRA_SOURCE_SHA: ${CODESTRA_SOURCE_SHA:?required protected source SHA}
+  CODESTRA_IMAGE_DIGEST: sha256:847c287ada0e12603910589f42038c5cdaaad04e248bd1dc6c6e0920a235f427
   LOKI_ALERTMANAGER_URL: ${LOKI_ALERTMANAGER_URL:-http://alertmanager:9093}
   OTEL_SERVICE_NAME: codestra-loki
   OTEL_RESOURCE_ATTRIBUTES: service.namespace=codestra-observability,codestra.business=platform,deployment.environment=${CODESTRA_ENVIRONMENT:?required},deployment.id=${CODESTRA_DEPLOYMENT_ID:?required}
@@ -15,7 +17,7 @@ x-loki-environment: &loki-environment
   OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
 
 x-loki-service: &loki-service
-  image: ${LOKI_IMAGE_REPOSITORY:-grafana/loki}:${LOKI_IMAGE_VERSION:?must be the health-compatible Loki version 3.6.5}@sha256:${LOKI_IMAGE_DIGEST:?set exactly 64 lowercase hexadecimal digest characters}
+  image: docker.io/grafana/loki@sha256:847c287ada0e12603910589f42038c5cdaaad04e248bd1dc6c6e0920a235f427
   command:
     - -config.file=/etc/loki/loki.yaml
     - -config.expand-env=true
@@ -37,6 +39,8 @@ x-loki-service: &loki-service
     - "7946"
   networks:
     - codestra-observability
+  secrets:
+    - loki_s3_credentials
   ulimits:
     nofile:
       soft: 65536
@@ -114,3 +118,7 @@ volumes:
   loki-1-data:
   loki-2-data:
   loki-3-data:
+
+secrets:
+  loki_s3_credentials:
+    file: ${LOKI_S3_CREDENTIALS_FILE:?mount an OpenBao-rendered AWS shared-credentials file}
