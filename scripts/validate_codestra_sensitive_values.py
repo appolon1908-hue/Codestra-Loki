@@ -23,6 +23,7 @@ SENSITIVE_KEY_TOKENS = {
     "setcookie",
     "apikey",
     "clientsecret",
+    "secretaccesskey",
     "accesstoken",
     "refreshtoken",
     "sessiontoken",
@@ -95,6 +96,8 @@ def prove_detector() -> None:
         {"broker_signing_secret": "committed-signing-material"},
         {"api_key": "committed-api-key"},
         {"clientSecret": "committed-client-secret"},
+        {"secret_access_key": "committed-secret-access-key"},
+        {"awsSecretAccessKey": "committed-aws-secret-access-key"},
         {"private_key": "committed-private-key"},
         {"root-token": "committed-root-token"},
     )
@@ -104,6 +107,7 @@ def prove_detector() -> None:
 
     safe_samples = (
         {"clientSecretFile": "/run/secrets/loki_client_secret"},
+        {"secretAccessKeyFile": "/run/secrets/loki_s3_secret_access_key"},
         {"api_key": "INJECT_FROM_OPENBAO"},
         {"session_token": "${LOKI_SESSION_TOKEN:?injected at runtime}"},
         {"captureAuthorizationHeaders": False},
