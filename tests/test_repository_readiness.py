@@ -52,6 +52,10 @@ class ReadinessTests(unittest.TestCase):
                 module.main()
             self.assertIn("codestra/loki.yaml", str(error.exception))
 
+    def test_corporate_gate_installs_pinned_yaml_parser(self) -> None:
+        workflow = (ROOT / ".github/workflows/validate-codestra-enterprise-profile.yml").read_text()
+        self.assertIn("pip install --disable-pip-version-check --no-cache-dir -r requirements-validation.txt", workflow)
+
     def test_release_identity_uses_service_contract_names(self) -> None:
         compose = (ROOT / "codestra/deploy/compose.candidate.yaml").read_text()
         contract = json.loads((ROOT / "codestra/api/service-contract.v1.json").read_text())
